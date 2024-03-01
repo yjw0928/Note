@@ -1,6 +1,6 @@
-学习笔记
+# 学习笔记
 
-# Javascript
+## Javascript
 
 ###### [JS 执行机制](./javascript/lesson1/lesson1.md)
 
