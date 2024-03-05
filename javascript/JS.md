@@ -3,3 +3,5 @@
 #### [事件循环](./lesson2/note.md)
 
 #### [生成器和迭代器](./lesson3/note.md)
+
+#### [原型和原型链](./lesson4/note.md)
