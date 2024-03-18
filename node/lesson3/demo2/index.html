@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <script>
+        const scriptDom = document.createElement("script")
+        scriptDom.src = "http://127.0.0.1:3000/api/getUser?callback=test"
+
+        document.body.appendChild(scriptDom)
+
+        function test(obj) {
+            console.log(obj)
+        }
+    </script>
+</body>
+</html>
