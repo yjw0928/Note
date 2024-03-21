@@ -69,3 +69,126 @@ stack: "AggregateError: All promises were rejected"
 ###### Promise.race()
 
 接受一个 Promise 可迭代对象作为输入，并返回单个 `Promise`。返回的 Promise 与第一个敲定的 Promise 的最终状态保持一致。
+
+#### Demo
+
+###### 你知道他的执行顺序吗？
+
+```typescript
+Promise.resolve()
+    .then(() => {
+        // 微任务队列1
+        console.log(1);
+        return Promise.resolve();
+        // 微任务队列3 微任务1执行完之后then函数返回的是Promise会合并成 Promise.resolve().then(() => {} //点then的执行函数)
+        // 微任务队列5 微任务3执行完之后会把() => {} 推入微任务队列
+    })
+    .then(() => {
+        // 微任务队列7
+        console.log(5);
+    });
+
+Promise.resolve()
+    .then(() => {
+        // 微任务队列2
+        console.log(2);
+    })
+    .then(() => {
+        // 微任务队列4
+        console.log(3);
+    })
+    .then(() => {
+        // 微任务队列6
+        console.log(4);
+    })
+    .then(() => {
+        // 微任务队列8
+        console.log(6);
+    });
+```
+
+###### 消除异步的传染性
+
+1. 执行 run 函数，这个时候异步的 request 会被修改为同步函数,触发 exec 函数的执行
+2. 执行传入的 func3， 执行 func2 ， func2 执行 request 的时候，这个时候 request 已经被替换成了一个同步函数
+3. request 执行的时候，会先到缓存里面看看有没有结果，就直接返回，没有的话就会抛出一个错误，错误的类型是原始的 request 的调用，同时函数的执行被终止
+4. exec 捕获到 request 抛出的错误，判断错误是一个 Promise 实例的话，就将 exec 设置为 Promise.then 的回调 这个时候 Promise 就是真实的请求
+5. 真实的请求 Promise 执行完之后，这个时候 exec 会被推入到微任务队列
+6. 再次执行 exec， 执行 func3， 执行 func2， 执行修改后的 request， 这个时候缓存中已经有值，直接返回
+7. 主要利用了 throw 抛出错误来终止函数的执行
+
+```javascript
+function request() {
+    console.log('func1');
+    return new Promise((resolve, reject) => {
+        setTimeout(() => {
+            resolve('模拟请求');
+        }, 3000);
+    });
+}
+
+function func2() {
+    console.log('func2');
+    return request();
+}
+
+function func3() {
+    console.log('func3');
+    const res = func2();
+    console.log('res==========>', res);
+}
+
+function run(func) {
+    let i = 0;
+    const cacheDatas = [];
+    const originRequest = request;
+
+    request = () => {
+        if (cacheDatas[i]) {
+            const cacheData = cacheDatas[i];
+            i++;
+            if (cacheData.status === 'fulfilled') {
+                request = originRequest;
+                return cacheData.data;
+            }
+
+            if (cacheData.status === 'rejected') {
+                request = originRequest;
+                return cacheData.err;
+            }
+        } else {
+            const result = {
+                status: 'pending',
+                err: null,
+                data: null,
+            };
+            cacheDatas[i] = result;
+            throw originRequest()
+                .then((res) => {
+                    result.status = 'fulfilled';
+                    result.data = res;
+                })
+                .catch((err) => {
+                    result.status = 'rejected';
+                    result.err = err;
+                });
+        }
+    };
+
+    const exec = () => {
+        try {
+            i = 0;
+            func();
+        } catch (error) {
+            if (error instanceof Promise) {
+                error.then(exec, exec);
+            } else {
+                throw error;
+            }
+        }
+    };
+    exec();
+}
+
+run(func3);
+```
