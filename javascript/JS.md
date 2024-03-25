@@ -1,6 +1,6 @@
 # [JS 执行机制](./lesson1/note.md)
 
-# 数据类型
+# [数据类型](./lesson7/note.md)
 
 # [事件循环](./lesson2/note.md)
 
